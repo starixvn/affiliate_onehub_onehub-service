@@ -1,0 +1,9 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<Functions SiteId="1" SiteName="ONEHub Admin">
+	<Function Name ="Push Data">
+		
+	</Function>
+    <Function Name ="Pull Data">
+
+    </Function>
+</Functions>

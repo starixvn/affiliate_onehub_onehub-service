@@ -1,0 +1,28 @@
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Shared packages -->
+    <PackageVersion Include="Fanex.Data.Repository" Version="4.3.4.5" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration" Version="9.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Json" Version="9.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.0" />
+    <PackageVersion Include="StackExchange.Redis" Version="2.8.16" />
+    <PackageVersion Include="System.Text.Json" Version="9.0.0" />
+    <!-- Hangfire packages for CronJob -->
+    <PackageVersion Include="Hangfire.AspNetCore" Version="1.8.22" />
+    <PackageVersion Include="Hangfire.Redis.StackExchange" Version="1.9.3" />
+    <!-- Polly packages for resilience -->
+    <PackageVersion Include="Microsoft.Extensions.Http.Polly" Version="9.0.0" />
+    <PackageVersion Include="Polly" Version="8.4.2" />
+    <PackageVersion Include="Polly.Extensions.Http" Version="3.0.0" />
+    <!-- Rate limiting for API -->
+    <PackageVersion Include="AspNetCoreRateLimit" Version="5.0.0" />
+    <!-- Swagger/OpenAPI for API -->
+    <PackageVersion Include="Swashbuckle.AspNetCore" Version="6.8.1" />
+    <!-- Health checks -->
+    <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="9.0.0" />
+    <PackageVersion Include="AspNetCore.HealthChecks.Redis" Version="8.0.1" />
+  </ItemGroup>
+</Project>
