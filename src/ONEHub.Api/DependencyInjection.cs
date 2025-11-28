@@ -28,6 +28,7 @@ public static class DependencyInjection
         services.AddProblemDetails();
 
         // Register shared services
+        services.AddSingleton<ILoggerService, LoggerService>();
         services.AddSingleton<IDateTimeService, DateTimeService>();
 
         return services;

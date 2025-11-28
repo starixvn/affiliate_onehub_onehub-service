@@ -3,6 +3,9 @@ using ONEHub.CronJob.Configurations;
 using ONEHub.CronJob.Jobs;
 using ONEHub.CronJob.Repositories;
 using ONEHub.CronJob.Repositories.Interfaces;
+using ONEHub.CronJob.Services;
+using ONEHub.CronJob.Services.Interfaces;
+using ONEHub.Shared.Models;
 using ONEHub.Shared.Services;
 using ONEHub.Shared.Services.Interfaces;
 
@@ -22,14 +25,24 @@ public static class DependencyInjection
         services.Configure<HangfireSettings>(configuration.GetSection(nameof(HangfireSettings)));
         services.AddOptions<HangfireSettings>().ValidateOnStart();
 
+        services.Configure<TokenRequest>(configuration.GetSection(nameof(TokenRequest)));
+        services.AddOptions<TokenRequest>().ValidateOnStart();
+
         // Get RedisSettings from configuration
         var redisSettings = configuration.GetSection(nameof(RedisSettings)).Get<RedisSettings>();
         ArgumentNullException.ThrowIfNull(redisSettings);
         ArgumentNullException.ThrowIfNull(redisSettings.Configuration);
 
+        // Add memory cache for token caching
+        services.AddMemoryCache();
+
         services.AddHealthChecks();
+        services.AddFanexData(configuration);
         services.AddRedisConfiguration(redisSettings);
         services.AddHangfireConfiguration(redisSettings);
+        
+        // Register token API client (must be before AddHttpClientWithPolicies)
+        services.AddTokenApiClient(configuration);
         services.AddHttpClientWithPolicies(configuration);
 
         // Add exception handler
@@ -56,6 +69,10 @@ public static class DependencyInjection
         services.AddSingleton<ILoggerService, LoggerService>();
         services.AddSingleton<ICacheService, RedisCacheService>();
         services.AddSingleton<IDateTimeService, DateTimeService>();
+
+        // Register API clients
+        services.AddScoped<IExternalApiClient, ExternalApiClient>();
+        services.AddScoped<ITokenApi, TokenApiService>();
 
         return services;
     }

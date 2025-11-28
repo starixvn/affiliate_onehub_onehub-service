@@ -1,4 +1,4 @@
-namespace ONEHub.Shared.Models;
+namespace ONEHub.CronJob.Models;
 
 /// <summary>
 /// Sample data model for transferring data between services

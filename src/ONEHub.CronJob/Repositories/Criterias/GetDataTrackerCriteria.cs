@@ -1,8 +1,8 @@
-﻿namespace ONEHub.CronJob.Repositories.Criterias;
-
-using Fanex.Data;
+﻿using Fanex.Data;
 using Fanex.Data.Repository;
-using Shared.Models;
+using ONEHub.CronJob.Models;
+
+namespace ONEHub.CronJob.Repositories.Criterias;
 
 public class GetDataTrackerCriteria : IDataTracker, ICriteria
 {
@@ -15,5 +15,5 @@ public class GetDataTrackerCriteria : IDataTracker, ICriteria
     public int StatusId { get; set; }
 
     [SpParam(Ignored = true)]
-    public long PushTrackerId => 0;
+    public long PushTrackerId { get; set; }
 }

@@ -61,19 +61,22 @@ onehub-service/
 ### Code Style
 - Follow **C# coding conventions** and naming guidelines
 - Use **async/await** for all I/O operations
-- Implement **dependency injection** for all services
-- Apply **interface-based programming** for testability
-- Use **minimal APIs** or controller-based approach consistently
+- Implement **dependency injection** for all services via interface-based programming
+- Use **minimal APIs** with endpoint grouping (not controllers)
+- Primary constructor syntax preferred for dependency injection (C# 12+)
 
 ### Architecture Patterns
-- **Clean Architecture**: Separation of concerns with dedicated layers
 - **Centralized DI Orchestration**: `DependencyInjection.cs` at project root consolidates all service registrations with a single `AddDependencyInjection()` call from `Program.cs`
 - **Feature-Based Configuration**: Each feature (Redis, Hangfire, Polly, etc.) has dedicated configuration extension methods in `Configurations/` folder
-- **Repository Pattern**: Abstract data access via shared interfaces
-- **Retry Pattern**: Use Polly for transient fault handling when calling external APIs
-- **Background Job Pattern**: Hangfire for scheduled data pulls, jobs inherit from `JobBase` abstract class
-- **Rate Limiting**: Protect public API endpoints from abuse
-- **Shared Kernel**: Common code in `ONEHub.Shared` project
+- **Repository Pattern**: Use Fanex.Data.Repository for all database access with stored procedures defined in `SpNames.xml`
+- **Retry Pattern**: Use Polly for transient fault handling when calling external APIs (configured in `PollyConfig.cs`)
+- **Background Job Pattern**: Hangfire for scheduled data pulls
+  - Jobs inherit from `JobBase` abstract class
+  - Job settings in `appsettings.json` (not hardcoded)
+  - Automatic trigger endpoints at `/api/jobs/trigger/{JobName}`
+- **Rate Limiting**: AspNetCoreRateLimit protects API endpoints (IP-based throttling)
+- **Shared Kernel**: Common code in `ONEHub.Shared` project (services, utilities)
+- **Secrets Management**: HashiCorp Vault for sensitive configuration
 
 ### Dependency Injection Pattern
 The solution uses a two-tier approach:
@@ -90,72 +93,66 @@ The solution uses a two-tier approach:
 - Each provides extension methods like `AddRedisConfiguration()`, `AddHangfireConfiguration()`
 - Called from `DependencyInjection.AddDependencyInjection()`
 
-**Current Status:**
-- **CronJob**: Fully implemented centralized pattern
-- **API**: Has `DependencyInjection.cs` file but `Program.cs` still uses individual configuration method calls
+**Implementation Status:**
+- Both CronJob and Api projects use centralized DI pattern
+- `Program.cs` makes single call to `AddDependencyInjection(configuration)`
 
 ### Polly Configuration
+HTTP clients are configured with retry policies in `PollyConfig.cs`:
 ```csharp
-// Retry policy for external API calls in cronjob
-services.AddHttpClient("ExternalApi")
-    .AddTransientHttpErrorPolicy(builder => 
-        builder.WaitAndRetryAsync(new[]
-        {
-            TimeSpan.FromSeconds(1),
-            TimeSpan.FromSeconds(5),
-            TimeSpan.FromSeconds(10)
-        }));
+services.AddHttpClientWithPolicies(configuration);  // Extension method
 ```
+Transient HTTP errors trigger exponential backoff retries.
+Proxy support available via `ExternalApi:Proxy` configuration.
 
-### Rate Limiting Configuration
+### Job Configuration
+Jobs are configured in `appsettings.json` under `JobSettings` array:
 ```json
-// appsettings.json for ONEHub.Api
 {
-  "IpRateLimiting": {
-    "EnableEndpointRateLimiting": true,
-    "StackBlockedRequests": false,
-    "RealIpHeader": "X-Real-IP",
-    "HttpStatusCode": 429,
-    "GeneralRules": [
-      {
-        "Endpoint": "*",
-        "Period": "1m",
-        "Limit": 60
-      }
-    ]
-  }
+  "JobSettings": [
+    {
+      "Name": "CustomerPullJob",
+      "CronSchedule": "1/30 * * * *",  // Every 30 minutes
+      "AdjustmentValue": "-30",
+      "MaxTimeRange": "30",
+      "DataSource": "MemberInfoLastImportedTime",
+      "MaxBatchSize": 100
+    }
+  ]
 }
 ```
+Jobs are scheduled automatically via `JobConfig.UseCronJobs()` middleware.
+Each job also gets a manual trigger endpoint.
 
-### Hangfire Configuration
-- **Storage**: Redis for distributed job storage
-- **Dashboard**: Secure with authentication
-- **Recurring Jobs**: Define in `Program.cs` or startup
-- **Job Retry**: Configure automatic retry on failure
+### Database Access Pattern
+- Use Fanex.Data.Repository for all database operations
+- Define stored procedures in `SpNames.xml`
+- Connection strings as array in `appsettings.json` with Name, ConnectionString, ProviderName
+- Repository interfaces: `IDynamicRepository`, `IDataRepository`, `IDataTrackerRepository`
+- All repositories registered as singletons
 
-### Testing Strategy
-- **Unit Tests**: Test business logic in isolation
-- **Integration Tests**: Test API endpoints and job execution
-- **Mocking**: Use Moq or NSubstitute for dependencies
-- **Test Coverage**: Aim for >80% coverage on critical paths
-
-### Git Workflow
-- **Main branch**: Production-ready code
-- **Develop branch**: Integration branch for features
-- **Feature branches**: `feature/feature-name`
-- **Commit conventions**: Use conventional commits (feat, fix, chore, etc.)
+### Hangfire Dashboard
+- Dashboard path configured via `HangfireSettings:DashboardPath`
+- Dashboard secret key for authentication via `HangfireSettings:DashboardSecretKey`
+- Redis storage for job persistence (shared with caching)
+- Accessible at configured path (default: `/hangfire`)
 
 ## Domain Context
 This project synchronizes data from external sources on a scheduled basis and exposes that data through a rate-limited public API. The cronjob component periodically pulls data using resilient HTTP calls (with retry), while the API component serves the synchronized data to consumers.
 
 ## Important Constraints
-- **Resilience**: All external API calls must use Polly retry policies
-- **Rate Limiting**: Public API must enforce rate limits to prevent abuse
-- **Containerization**: Each project (CronJob and Api) must have its own Dockerfile
-- **Job Persistence**: Hangfire jobs must use Redis for distributed scenarios
-- **Code Reuse**: Common code must reside in the Shared project
+- **Resilience**: All external API calls must use Polly retry policies configured in `PollyConfig.cs`
+- **Rate Limiting**: Public API enforces IP-based rate limits (60/min, 1000/hour default)
+- **Database Access**: Must use Fanex.Data.Repository with stored procedures in `SpNames.xml`
+- **Job Configuration**: Job settings in `appsettings.json`, not hardcoded
+- **Redis Required**: Both CronJob (Hangfire) and Api (rate limiting) require Redis
+- **Job Pattern**: All jobs inherit from `JobBase` and implement `ExecuteAsync()`
+- **DI Pattern**: Use centralized `DependencyInjection.cs` with feature-specific configurations
+- **Code Reuse**: Common services in `ONEHub.Shared` project
 
 ## External Dependencies
-- **External Data API**: Third-party API for data pulling (configure endpoint in appsettings)
-- **Redis**: Required for Hangfire job storage and caching
+- **SQL Server**: Primary database (connection via Fanex.Data.Repository)
+- **Redis**: Required for Hangfire job storage and rate limiting
+- **HashiCorp Vault**: Optional secrets management (can be disabled)
+- **Fanex Data Service API**: External API service (configurable endpoint)
 - **Docker**: For containerization and deployment

@@ -71,6 +71,21 @@ dotnet test tests/ONEHub.Shared.Tests
 
 ## Architecture Overview
 
+### Database Layer (Fanex.Data.Repository)
+The solution uses Fanex.Data.Repository for database access:
+- All data access goes through repository interfaces (`IDynamicRepository`, `IDataRepository`, `IDataTrackerRepository`)
+- Stored procedures are defined in `SpNames.xml` at the project root
+- Connection strings configured in `appsettings.json` as array of connection objects
+- Supports multiple database connections with different credentials
+- Configured via `AddFanexData(configuration)` in DependencyInjection
+
+### Secrets Management (Vault)
+HashiCorp Vault integration for secure secret storage:
+- Configured via `VaultOptions` in appsettings.json
+- Enable/disable with `Enable` flag
+- Automatically polls for secret updates based on `MinutesPolling`
+- Used for database credentials and sensitive configuration
+
 ### Dependency Injection Pattern
 The solution uses a two-tier DI setup:
 
@@ -78,7 +93,7 @@ The solution uses a two-tier DI setup:
 - `DependencyInjection.cs` at project root (same level as `Program.cs`)
 - Single `AddDependencyInjection(IConfiguration)` extension method that orchestrates all service registrations
 - `Program.cs` makes a single call: `builder.Services.AddDependencyInjection(builder.Configuration)`
-- Currently implemented in **CronJob** project; **API** project has the file but still uses individual calls in `Program.cs`
+- Implemented in **both CronJob and Api** projects
 
 **2. Feature-Specific Configuration (Configurations Folder)**
 - Each feature has dedicated extension method in `Configurations/` folder
@@ -89,12 +104,15 @@ The solution uses a two-tier DI setup:
 ```csharp
 public static IServiceCollection AddDependencyInjection(this IServiceCollection services, IConfiguration configuration)
 {
+    // Register and validate options
+    services.Configure<JobSettings>(configuration.GetSection(nameof(JobSettings)));
+    services.Configure<RedisSettings>(configuration.GetSection(nameof(RedisSettings)));
+    services.Configure<HangfireSettings>(configuration.GetSection(nameof(HangfireSettings)));
+
     services.AddHealthChecks();
-    services.AddRedisConfiguration(configuration);
-
-    var redis = services.BuildServiceProvider().GetRequiredService<IConnectionMultiplexer>();
-
-    services.AddHangfireConfiguration(redis);
+    services.AddFanexData(configuration);  // Database layer
+    services.AddRedisConfiguration(redisSettings);
+    services.AddHangfireConfiguration(redisSettings);
     services.AddHttpClientWithPolicies(configuration);
     services.AddExceptionHandler<GlobalExceptionHandler>();
     services.AddProblemDetails();
@@ -108,8 +126,9 @@ public static IServiceCollection AddDependencyInjection(this IServiceCollection 
 Background jobs inherit from `JobBase` abstract class:
 - `JobBase.RunAsync()` handles logging and exception handling
 - Concrete jobs implement `ExecuteAsync()` for business logic
-- Jobs are scheduled in `JobScheduler.ScheduleRecurringJobs()` using Hangfire's `RecurringJob.AddOrUpdate()`
-- Job IDs and cron expressions defined in `AppConstants.Jobs` (referenced in README but not yet implemented)
+- Jobs are scheduled in `JobConfig.UseCronJobs()` using Hangfire's `RecurringJob.AddOrUpdate<T>()`
+- Job configuration (cron schedule, data source, batch size) defined in `appsettings.json` under `JobSettings` array
+- Each job gets a manual trigger endpoint at `/api/jobs/trigger/{JobName}` for on-demand execution
 
 ### HTTP Client + Polly Resilience
 All external API calls use HttpClient configured with Polly retry policies:
@@ -147,23 +166,47 @@ Key packages:
 - **Hangfire.Redis.StackExchange** - Job persistence
 - **Polly** and **Microsoft.Extensions.Http.Polly** - Resilience
 - **AspNetCoreRateLimit** - API throttling
-- **Fanex.Data.Repository** - Data access abstraction
+- **Fanex.Data.Repository** - Data access abstraction with stored procedure support
+- **Fanex.Data.ProxyClient** - HTTP proxy support for external API calls
+- **StackExchange.Redis** - Redis client for caching
 
 ## Configuration Files
 
 ### CronJob appsettings.json
 ```json
 {
-  "ConnectionStrings": {
-    "Redis": "localhost:6379"  // Hangfire storage + caching
-  },
-  "ExternalApi": {
-    "BaseUrl": "https://api.example.com",
-    "ApiKey": "your-api-key",
-    "Proxy": {
-      "Enabled": false,
-      "Host": "http://proxy.example.com:8080"
+  "StoredProcedurePath": "SpNames.xml",
+  "FanexDataServiceApi": "http://fanexdataservices.nexdev.net",
+  "ConnectionStrings": [
+    {
+      "Name": "DBOH.ONEHub.wsv_oh",
+      "ConnectionString": "Data Source=...;Initial Catalog=ONEHub;...",
+      "ProviderName": "System.Data.SqlClient"
     }
+  ],
+  "JobSettings": [
+    {
+      "Name": "CustomerPullJob",
+      "AdjustmentValue": "-30",
+      "CronSchedule": "1/30 * * * *",
+      "MaxTimeRange": "30",
+      "DataSource": "MemberInfoLastImportedTime",
+      "MaxBatchSize": 100
+    }
+  ],
+  "RedisSettings": {
+    "InstanceName": "ONEHub_CronJob_",
+    "Configuration": "localhost:6379,defaultDatabase=5"
+  },
+  "HangfireSettings": {
+    "DashboardSecretKey": "your-secret-key",
+    "DashboardPath": "/hangfire"
+  },
+  "VaultOptions": {
+    "Enable": "true",
+    "Address": "https://vault.example.com",
+    "Role": "role-id",
+    "SecretId": "secret-id"
   }
 }
 ```
@@ -171,12 +214,22 @@ Key packages:
 ### API appsettings.json
 ```json
 {
+  "ConnectionStrings": {
+    "Redis": "localhost:6379"
+  },
   "IpRateLimiting": {
+    "EnableEndpointRateLimiting": true,
+    "HttpStatusCode": 429,
     "GeneralRules": [
       {
         "Endpoint": "*",
         "Period": "1m",
         "Limit": 60
+      },
+      {
+        "Endpoint": "*",
+        "Period": "1h",
+        "Limit": 1000
       }
     ]
   }
@@ -185,33 +238,53 @@ Key packages:
 
 ## Development Patterns
 
+### Working with Stored Procedures
+1. Define stored procedure names in [SpNames.xml](src/ONEHub.CronJob/SpNames.xml)
+2. Use repository interfaces to execute:
+   ```csharp
+   var result = await _dynamicRepository.QueryAsync<T>(
+       spName: "YourStoredProcName",
+       parameters: new { param1 = value1 }
+   );
+   ```
+3. Repositories are registered as singletons in `DependencyInjection.AddCronJobs()`
+
+### Manual Job Triggering
+Jobs can be triggered manually via HTTP endpoints:
+- Endpoint: `POST /api/jobs/trigger/{JobName}`
+- Example: `POST /api/jobs/trigger/CustomerPullJob`
+- Returns job ID and timestamp
+- Useful for testing and on-demand execution
+
 ### Adding New Background Jobs
-1. Create job class inheriting from `JobBase` in `ONEHub.CronJob/Jobs/`
+1. Create job class inheriting from `JobBase` in [ONEHub.CronJob/Jobs/](src/ONEHub.CronJob/Jobs/)
 2. Implement `ExecuteAsync()` method with business logic
-3. Register job in `JobScheduler.ScheduleRecurringJobs()`
-4. Define cron expression and job ID in `AppConstants.Jobs`
+3. Register job in `DependencyInjection.AddCronJobs()` private method
+4. Add job scheduling in [JobConfig.cs:55](src/ONEHub.CronJob/Configurations/JobConfig.cs#L55) via `ScheduleJob<YourJob>(jobSettings)`
+5. Add trigger endpoint in [JobConfig.cs:60](src/ONEHub.CronJob/Configurations/JobConfig.cs#L60) via `MapJobTriggerEndpoint<YourJob>(app)`
+6. Define job configuration in `appsettings.json` under `JobSettings` array with cron schedule, data source, etc.
 
 ### Adding New API Endpoints
-1. Create endpoint class in `ONEHub.Api/Endpoints/`
+1. Create endpoint class in [ONEHub.Api/Endpoints/](src/ONEHub.Api/Endpoints/)
 2. Define static `MapEndpoints(WebApplication app)` method
-3. Use endpoint grouping with `.MapGroup("/api/resource")`
-4. Call mapping method from `Program.cs`
-5. Add service interfaces and implementations as needed
+3. Use endpoint grouping with `.MapGroup("/api/resource")` and `.WithTags()` for Swagger organization
+4. Call mapping method from [Program.cs:19](src/ONEHub.Api/Program.cs#L19)
+5. Add service interfaces and implementations as needed in `DependencyInjection.cs`
 
 ### Adding New Services
-1. Define interface in `ONEHub.Shared/Services/` (if shared) or project-specific folder
-2. Implement service class
-3. Register in `DependencyInjection.cs` (either in main method or create a private helper method like `AddCronJobs()`)
+1. Define interface in [ONEHub.Shared/Services/Interfaces/](src/ONEHub.Shared/Services/Interfaces/) (if shared) or project-specific folder
+2. Implement service class in [ONEHub.Shared/Services/](src/ONEHub.Shared/Services/) or project folder
+3. Register in `DependencyInjection.cs`:
+   - For shared services: Register in both CronJob and Api `DependencyInjection.cs`
+   - For job-specific services: Use private `AddCronJobs()` helper in CronJob
 4. Use constructor injection to consume service
 
 Example:
 ```csharp
-// In DependencyInjection.cs
-private static IServiceCollection AddCronJobs(this IServiceCollection services)
-{
-    services.AddScoped<IMyService, MyService>();
-    return services;
-}
+// In CronJob/DependencyInjection.cs private method
+services.AddSingleton<ILoggerService, LoggerService>();
+services.AddSingleton<ICacheService, RedisCacheService>();
+services.AddScoped<IExternalApiClient, ExternalApiClient>();
 ```
 
 ## Health Checks
@@ -225,8 +298,11 @@ Both projects expose `/healthz` endpoints:
 - All external API calls MUST use Polly retry policies
 - All services MUST use interface-based DI
 - All I/O operations MUST use async/await
-- Redis is REQUIRED for CronJob (Hangfire storage)
-- Rate limiting is enforced on all API endpoints
+- Redis is REQUIRED for both CronJob (Hangfire storage) and Api (rate limiting)
+- Rate limiting is enforced on all API endpoints (60/min, 1000/hour by default)
+- Database access MUST use Fanex.Data.Repository with stored procedures defined in `SpNames.xml`
+- Job configuration MUST be in `appsettings.json` under `JobSettings` array, not hardcoded
+- All new jobs MUST inherit from `JobBase` and implement `ExecuteAsync()`
 
 ## Related Documentation
 

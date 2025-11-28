@@ -1,8 +1,8 @@
-namespace ONEHub.CronJob.Repositories.Interfaces;
+using ONEHub.CronJob.Models;
+using ONEHub.CronJob.Repositories.Commands;
+using ONEHub.CronJob.Repositories.Criterias;
 
-using Commands;
-using Criterias;
-using Shared.Models;
+namespace ONEHub.CronJob.Repositories.Interfaces;
 
 public interface IDataTrackerRepository
 {

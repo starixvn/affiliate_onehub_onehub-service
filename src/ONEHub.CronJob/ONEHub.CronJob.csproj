@@ -11,14 +11,20 @@
   </ItemGroup>
 
   <ItemGroup>
-	<PackageReference Include="Fanex.Data.Repository" />
+    <None Update="SpNames.xml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+	<PackageReference Include="Fanex.Data.ProxyClient" />
 	<PackageReference Include="Hangfire.AspNetCore" />
     <PackageReference Include="Hangfire.Redis.StackExchange" />
     <PackageReference Include="Microsoft.Extensions.Http.Polly" />
     <PackageReference Include="Polly" />
-    <PackageReference Include="Polly.Extensions.Http" />
     <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" />
     <PackageReference Include="AspNetCore.HealthChecks.Redis" />
+    <PackageReference Include="System.Text.Json" />
   </ItemGroup>
 
 </Project>

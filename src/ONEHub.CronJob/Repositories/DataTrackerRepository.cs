@@ -1,10 +1,10 @@
-namespace ONEHub.CronJob.Repositories;
-
-using Commands;
-using Criterias;
 using Fanex.Data.Repository;
-using Interfaces;
-using Shared.Models;
+using ONEHub.CronJob.Models;
+using ONEHub.CronJob.Repositories.Commands;
+using ONEHub.CronJob.Repositories.Criterias;
+using ONEHub.CronJob.Repositories.Interfaces;
+
+namespace ONEHub.CronJob.Repositories;
 
 public class DataTrackerRepository(IDynamicRepository repo) : IDataTrackerRepository
 {

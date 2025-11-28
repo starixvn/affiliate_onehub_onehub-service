@@ -1,6 +1,6 @@
 ﻿using Fanex.Data;
 using Fanex.Data.Repository;
-using ONEHub.Shared.Models;
+using ONEHub.CronJob.Models;
 
 namespace ONEHub.CronJob.Repositories.Commands;
 
