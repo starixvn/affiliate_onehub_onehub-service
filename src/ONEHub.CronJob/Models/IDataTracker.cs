@@ -5,9 +5,9 @@ namespace ONEHub.CronJob.Models;
 /// </summary>
 public interface IDataTracker
 {
-    public int PushDataType { get; }
+    int PushDataType { get; }
 
-    public int StatusId { get; }
+    int StatusId { get; }
 
-    public long PushTrackerId { get; }
+    long PushTrackerId { get; }
 }

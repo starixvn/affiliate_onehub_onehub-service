@@ -10,7 +10,7 @@ public class ExternalApiClient : IExternalApiClient
 {
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILoggerService _logger;
-    private const string IdCodePushPath = "api/v1/idcode/push";
+    private const string _idCodePushPath = "api/v1/idcode/push";
 
     public ExternalApiClient(IHttpClientFactory httpClientFactory, ILoggerService logger)
     {
@@ -28,13 +28,13 @@ public class ExternalApiClient : IExternalApiClient
             var client = _httpClientFactory.CreateClient("ExternalApi");
 
             // Combine BaseUrl with hardcoded relative path
-            var url = $"{client.BaseAddress?.ToString().TrimEnd('/')}/{IdCodePushPath}";
+            var url = $"{client.BaseAddress?.ToString().TrimEnd('/')}/{_idCodePushPath}";
 
             _logger.LogInfo($"Pushing IdCode data to {url}");
 
             // POST raw JSON string
             var content = new StringContent(jsonData, Encoding.UTF8, "application/json");
-            var response = await client.PostAsync(IdCodePushPath, content, cancellationToken);
+            var response = await client.PostAsync(_idCodePushPath, content, cancellationToken);
 
             if (response.IsSuccessStatusCode)
             {

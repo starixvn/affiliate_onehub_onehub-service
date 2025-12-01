@@ -1,9 +1,8 @@
-namespace ONEHub.Shared.Services;
-
 using System.Text.Json;
 using ONEHub.Shared.Services.Interfaces;
 using StackExchange.Redis;
 
+namespace ONEHub.Shared.Services;
 /// <summary>
 /// Redis implementation of cache service
 /// </summary>

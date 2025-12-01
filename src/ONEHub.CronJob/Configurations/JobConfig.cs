@@ -1,5 +1,4 @@
 using Hangfire;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using ONEHub.CronJob.Jobs;
 using ONEHub.Shared.Services.Interfaces;

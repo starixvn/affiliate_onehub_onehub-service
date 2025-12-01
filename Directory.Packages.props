@@ -6,7 +6,7 @@
     <!-- Shared packages -->
     <PackageVersion Include="Fanex.Data.ProxyClient" Version="1.0.6.1" />
     <PackageVersion Include="Fanex.Data.Repository" Version="4.3.4.5" />
-    <PackageVersion Include="Microsoft.Extensions.Configuration" Version="9.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration" Version="10.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Configuration.Json" Version="9.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.0" />
     <PackageVersion Include="StackExchange.Redis" Version="2.8.16" />
