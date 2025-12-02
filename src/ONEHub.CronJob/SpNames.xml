@@ -1,11 +1,13 @@
-﻿<?xml version="1.0" encoding="utf-8" ?>
+<?xml version="1.0" encoding="utf-8" ?>
 <Functions SiteId="1" SiteName="ONEHub Admin">
 	<Function Name ="Push Data">
 		<Setting Key="Task_API_PushDataTracker_Import" SpName="Task_API_PushDataTracker_Import" DbName="DBOH.ONEHub.wsv_oh" />
         <Setting Key="Task_API_PushDataTracker_Upd" SpName="Task_API_PushDataTracker_Upd" DbName="DBOH.ONEHub.wsv_oh" />
         <Setting Key="Task_API_PushDataTracker_Sel" SpName="Task_API_PushDataTracker_Sel" DbName="DBOH.ONEHub.wsv_oh" />
 	</Function>
+    
     <Function Name ="Pull Data">
+        <Setting Key="Task_OH_GetSetting" SpName="Task_OH_GetSetting" DbName="DBOH.ONEHub.wsv_oh" />
         <Setting Key="Task_API_MemberInfo_Import" SpName="Task_API_MemberInfo_Import" DbName="DBOH.ONEHub.wsv_oh" />
         <Setting Key="Task_API_MemberInfo_ImportedTime" SpName="Task_API_MemberInfo_ImportedTime" DbName="DBOH.ONEHub.wsv_oh" />
     </Function>

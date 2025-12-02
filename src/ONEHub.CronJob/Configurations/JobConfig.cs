@@ -1,6 +1,7 @@
 using Hangfire;
 using Microsoft.Extensions.Options;
 using ONEHub.CronJob.Jobs;
+using ONEHub.CronJob.Jobs.OHCustomer;
 using ONEHub.Shared.Services.Interfaces;
 
 namespace ONEHub.CronJob.Configurations;
@@ -32,6 +33,16 @@ public class JobConfiguration
     public string CronSchedule { get; set; } = null!;
 
     public int MaxBatchSize { get; set; } = 100;
+
+    /// <summary>
+    /// Maximum time range in minutes for data pull
+    /// </summary>
+    public int MaxTimeRange { get; set; } = 30;
+
+    /// <summary>
+    /// Data source identifier for tracking (e.g., "MemberInfoLastImportedTime")
+    /// </summary>
+    public string DataSource { get; set; } = string.Empty;
 }
 
 /// <summary>
@@ -46,12 +57,18 @@ public static class JobConfig
     {
         var jobSettings = app.Services.GetRequiredService<IOptions<JobSettings>>().Value;
 
-        // Schedule each job directly using RecurringJob.AddOrUpdate<T>
-        ScheduleJob<CustomerPullJob>(jobSettings);
+        // Schedule customer pull jobs
+        ScheduleJob<OHCustomerPullJob>(jobSettings);
+        ScheduleJob<OHCustomerRealTimePullJob>(jobSettings);
+        ScheduleJob<OHCustomerManualPullJob>(jobSettings);
+
+        // Schedule other jobs
         ScheduleJob<IdCodePushJob>(jobSettings);
 
         // Register trigger endpoints for each job
-        MapJobTriggerEndpoint<CustomerPullJob>(app);
+        MapJobTriggerEndpoint<OHCustomerPullJob>(app);
+        MapJobTriggerEndpoint<OHCustomerRealTimePullJob>(app);
+        MapJobTriggerEndpoint<OHCustomerManualPullJob>(app);
         MapJobTriggerEndpoint<IdCodePushJob>(app);
 
         return app;

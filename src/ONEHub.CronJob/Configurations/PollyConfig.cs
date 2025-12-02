@@ -1,7 +1,7 @@
-using Polly;
-using Polly.Extensions.Http;
 using System.Net;
 using ONEHub.CronJob.Handlers;
+using Polly;
+using Polly.Extensions.Http;
 
 namespace ONEHub.CronJob.Configurations;
 

@@ -24,7 +24,6 @@
     <PackageReference Include="Polly" />
     <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" />
     <PackageReference Include="AspNetCore.HealthChecks.Redis" />
-    <PackageReference Include="System.Text.Json" />
   </ItemGroup>
 
 </Project>

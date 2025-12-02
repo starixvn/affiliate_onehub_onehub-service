@@ -1,6 +1,7 @@
-﻿using Fanex.Data.Repository;
+using Fanex.Data.Repository;
 using ONEHub.CronJob.Configurations;
 using ONEHub.CronJob.Jobs;
+using ONEHub.CronJob.Jobs.OHCustomer;
 using ONEHub.CronJob.Repositories;
 using ONEHub.CronJob.Repositories.Interfaces;
 using ONEHub.CronJob.Services;
@@ -40,7 +41,7 @@ public static class DependencyInjection
         services.AddFanexData(configuration);
         services.AddRedisConfiguration(redisSettings);
         services.AddHangfireConfiguration(redisSettings);
-        
+
         // Register token API client (must be before AddHttpClientWithPolicies)
         services.AddTokenApiClient(configuration);
         services.AddHttpClientWithPolicies(configuration);
@@ -57,7 +58,9 @@ public static class DependencyInjection
     private static IServiceCollection AddCronJobs(this IServiceCollection services)
     {
         // Register jobs
-        services.AddScoped<CustomerPullJob>();
+        services.AddScoped<OHCustomerPullJob>();
+        services.AddScoped<OHCustomerRealTimePullJob>();
+        services.AddScoped<OHCustomerManualPullJob>();
         services.AddScoped<IdCodePushJob>();
 
         // Register job dependencies

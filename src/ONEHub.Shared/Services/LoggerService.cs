@@ -10,7 +10,7 @@ public class LoggerService(ILogger<LoggerService> logger) : ILoggerService
         => logger.LogError(errMsg);
 
     public void LogError(string errMsg, Exception exception)
-        => logger.LogError(errMsg, exception);
+        => logger.LogError(exception, errMsg);  // ← Exception must be FIRST parameter!
 
     public void LogError(Exception exception)
         => logger.LogError(LoggerUtils.GenerateMessage(exception));

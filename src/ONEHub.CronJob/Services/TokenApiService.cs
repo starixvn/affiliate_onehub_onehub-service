@@ -1,4 +1,3 @@
-using System.Net.Http.Json;
 using System.Text.Json;
 using ONEHub.CronJob.Models;
 using ONEHub.CronJob.Services.Interfaces;
@@ -31,7 +30,7 @@ public class TokenApiService : ITokenApi
         try
         {
             var client = _httpClientFactory.CreateClient(TokenApiClientName);
-            
+
             _logger.LogInfo($"Requesting token for user: {request.UserName}");
 
             // Create request payload

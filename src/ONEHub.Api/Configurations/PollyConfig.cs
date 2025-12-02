@@ -7,7 +7,7 @@ public static class PollyConfig
 {
     public static IServiceCollection AddPollyPolicies(
         this IServiceCollection services,
-        IConfiguration configuration)
+        IConfiguration _)
     {
         // Policies are applied when configuring specific HttpClients
         // This is a placeholder for centralized policy management
